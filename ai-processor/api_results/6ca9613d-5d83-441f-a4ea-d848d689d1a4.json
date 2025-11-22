@@ -1,0 +1,40 @@
+{
+  "total_detections": 1,
+  "unique_vehicles": 1,
+  "repeated_vehicles": {},
+  "all_detections": [
+    {
+      "plate_number": null,
+      "bbox": {
+        "x": 65,
+        "y": 121,
+        "width": 42,
+        "height": 27
+      },
+      "confidence": 0.8,
+      "image_path": "C:\\Users\\cpd.44\\Pictures\\Carros\\images (3).jpg",
+      "vehicle_color": "unknown",
+      "vehicle_color_confidence": 0.0,
+      "vehicle_model": null
+    }
+  ],
+  "detected_plates": [
+    {
+      "plate_number": null,
+      "bbox": {
+        "x": 65,
+        "y": 121,
+        "width": 42,
+        "height": 27
+      },
+      "confidence": 0.8,
+      "image_path": "C:\\Users\\cpd.44\\Pictures\\Carros\\images (3).jpg",
+      "vehicle_color": "unknown",
+      "vehicle_color_confidence": 0.0,
+      "vehicle_model": null
+    }
+  ],
+  "file_path": "C:\\Users\\cpd.44\\Pictures\\Carros\\images (3).jpg",
+  "overall_vehicle_color": "unknown",
+  "overall_vehicle_color_confidence": 0.0
+}

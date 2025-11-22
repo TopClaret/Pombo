@@ -1,0 +1,59 @@
+{
+  "models_dir": "C:\\Users\\cpd.44\\Desktop\\Pombo\\ai-processor\\models",
+  "models": {
+    "yolov8_license_plate": {
+      "name": "YOLOv8 License Plate Detector",
+      "description": "Modelo YOLOv8 pré-treinado para detecção de placas",
+      "source": "GitHub - Muhammad-Zeerak-Khan",
+      "type": "detection",
+      "filename": "license_plate_detector.pt",
+      "path": "C:\\Users\\cpd.44\\Desktop\\Pombo\\ai-processor\\models\\license_plate_detector.pt",
+      "available": true
+    },
+    "yolov8n": {
+      "name": "YOLOv8 Nano (COCO)",
+      "description": "Modelo YOLOv8 Nano pré-treinado no COCO (pode detectar veículos)",
+      "source": "Ultralytics",
+      "type": "detection",
+      "filename": "yolov8n.pt",
+      "path": "C:\\Users\\cpd.44\\Desktop\\Pombo\\ai-processor\\models\\yolov8n.pt",
+      "available": true
+    },
+    "yolov8s": {
+      "name": "YOLOv8 Small (COCO)",
+      "description": "Modelo YOLOv8 Small pré-treinado no COCO",
+      "source": "Ultralytics",
+      "type": "detection",
+      "filename": "yolov8s.pt",
+      "path": "C:\\Users\\cpd.44\\Desktop\\Pombo\\ai-processor\\models\\yolov8s.pt",
+      "available": true
+    },
+    "yolov8m": {
+      "name": "YOLOv8 Medium (COCO)",
+      "description": "Modelo YOLOv8 Medium pré-treinado no COCO",
+      "source": "Ultralytics",
+      "type": "detection",
+      "filename": "yolov8m.pt",
+      "path": "C:\\Users\\cpd.44\\Desktop\\Pombo\\ai-processor\\models\\yolov8m.pt",
+      "available": true
+    },
+    "yolov8l": {
+      "name": "YOLOv8 Large (COCO)",
+      "description": "Modelo YOLOv8 Large pré-treinado no COCO (maior precisão)",
+      "source": "Ultralytics",
+      "type": "detection",
+      "filename": "yolov8l.pt",
+      "path": null,
+      "available": false
+    },
+    "yolov8x": {
+      "name": "YOLOv8 XLarge (COCO)",
+      "description": "Modelo YOLOv8 XLarge pré-treinado no COCO (máxima precisão)",
+      "source": "Ultralytics",
+      "type": "detection",
+      "filename": "yolov8x.pt",
+      "path": null,
+      "available": false
+    }
+  }
+}

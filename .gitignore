@@ -1,0 +1,14 @@
+node_modules/
+dist/
+build/
+.DS_Store
+Thumbs.db
+**/.env
+backend/.env
+**/*.log
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+ai-processor/venv*/
+ai-processor/models/*.pt

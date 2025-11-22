@@ -1,0 +1,10 @@
+{
+  "total_detections": 0,
+  "unique_vehicles": 0,
+  "repeated_vehicles": {},
+  "all_detections": [],
+  "detected_plates": [],
+  "file_path": "C:\\Users\\cpd.44\\Desktop\\Pombo\\backend\\uploads\\files-1763830451051-740777943.jpg",
+  "overall_vehicle_color": "unknown",
+  "overall_vehicle_color_confidence": 0.0
+}

@@ -1,0 +1,15 @@
+{
+  "name": "pombo-analytics",
+  "version": "1.0.0",
+  "description": "Sistema completo de upload e análise de vídeos e fotos",
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\" \"npm run ai\"",
+    "server": "cd backend && npm run dev",
+    "client": "cd frontend && npm start",
+    "ai": "cd ai-processor && python app.py",
+    "install-all": "npm install && cd backend && npm install && cd ../frontend && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^7.6.0"
+  }
+}
