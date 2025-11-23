@@ -125,4 +125,5 @@ npm test
 - Padrão de commit: `type(scope): mensagem` (ex.: `feat(analysis): suporte a cor do veículo`).
 
 ## Licença
+- Este projeto foi criado com IA
 - Este projeto é para fins educacionais e prototipagem. Ajuste termos de uso conforme necessidade.
