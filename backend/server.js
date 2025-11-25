@@ -47,14 +47,10 @@ app.use(securityHeaders);
 app.use(sanitizeData);
 app.use(preventNoSQLInjection);
 
-// Rate limiting - mais restritivo para endpoints críticos
-// const generalLimiter = rateLimit({
-//   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-//   max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
-//   message: 'Muitas requisições deste IP, tente novamente mais tarde.',
-//   standardHeaders: true,
-//   legacyHeaders: false,
-// });
+const generalLimiter = rateLimit({
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
+});
 
 // const authLimiter = rateLimit({
 //   windowMs: 15 * 60 * 1000, // 15 minutos
@@ -62,7 +58,7 @@ app.use(preventNoSQLInjection);
 //   message: 'Muitas tentativas de login, tente novamente em 15 minutos.',
 // });
 
-// app.use(generalLimiter);
+app.use(generalLimiter);
 // Aplicar rate limiting específico para auth routes será feito nas rotas
 
 // Middleware para parsing JSON
@@ -111,6 +107,13 @@ app.use('*', (req, res) => {
 
 const start = async () => {
   try {
+    if (process.env.NODE_ENV === 'production') {
+      const secret = process.env.JWT_SECRET || '';
+      const weak = !secret || /secret|change|123|default/i.test(secret);
+      if (weak) {
+        throw new Error('JWT_SECRET inválido em produção');
+      }
+    }
     // Sistema de migração automática para Supabase
     const migration = new SupabaseMigration();
     
@@ -141,7 +144,8 @@ const start = async () => {
     console.log('❌ Erro ao iniciar servidor:', e.message);
   }
 };
-
-start();
-
+const isTest = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID !== undefined;
+if (!isTest) {
+  start();
+}
 module.exports = app;

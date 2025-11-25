@@ -5,19 +5,17 @@ const { authenticate } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Rate limiting específico para autenticação
-// const authLimiter = rateLimit({
-//   windowMs: 15 * 60 * 1000, // 15 minutos
-//   max: 5, // apenas 5 tentativas por IP
-//   message: 'Muitas tentativas, tente novamente em 15 minutos.',
-//   standardHeaders: true,
-//   legacyHeaders: false,
-//   skipSuccessfulRequests: true, // não contar tentativas bem-sucedidas
-// });
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+});
 
 // Rotas públicas
 router.post('/register', register);
-router.post('/login', login);
+router.post('/login', authLimiter, login);
 
 // Rotas protegidas
 router.get('/profile', authenticate, getProfile);
