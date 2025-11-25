@@ -5,6 +5,8 @@ build/
 Thumbs.db
 **/.env
 backend/.env
+backend/uploads/
+*.sqlite
 **/*.log
 **/__pycache__/
 **/*.pyc

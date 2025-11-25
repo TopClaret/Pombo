@@ -127,3 +127,43 @@ npm test
 ## Licença
 - Este projeto foi criado com IA
 - Este projeto é para fins educacionais e prototipagem. Ajuste termos de uso conforme necessidade.
+## Tesseract OCR (Windows)
+- Instalação oficial: use o instalador do Tesseract OCR para Windows (UB Mannheim) via Microsoft Winget.
+- Verificar instalação: `tesseract --version` (ex.: `v5.5.0.20241111`).
+- Configurar caminho no AI Processor: crie/edite `ai-processor/.env` e defina `TESSERACT_CMD=C:\\Program Files\\Tesseract-OCR\\tesseract.exe`.
+- Recomendação: mantenha a versão atualizada e valide compatibilidade com Leptonica.
+
+## Modelos de Detecção (YOLO, Ultralytics, Roboflow)
+- Variáveis no `ai-processor/.env`:
+  - `PLATE_DETECTOR_ONNX_PATH` (YOLO ONNX)
+  - `ULTRALYTICS_MODEL_PATH` (weights Ultralytics)
+  - `ROBOFLOW_API_URL`, `ROBOFLOW_API_KEY`, `ROBOFLOW_MODEL_ID`
+- Carregamento via API:
+  - `POST /yolo/load` body: `onnx_path` opcional
+  - `POST /ultra/load` body: `weights_path` opcional
+  - `POST /roboflow/load` body: `api_url`, `api_key`, `model_id` opcional
+- Ensemble e fallback:
+  - O AI combina previsões dos três detectores, mescla caixas por IoU e pondera por pesos.
+  - Se nenhum detector encontrar placas, ativa contornos/MSER e aplica OCR robusto.
+  - Ajuste de pesos: `POST /config/ensemble` com `yolo`, `ultra`, `roboflow` (padrão 0.33/0.34/0.33) ou `.env ENSEMBLE_WEIGHTS`.
+
+## Cenários Desafiadores e Configurações
+- Ângulo incomum: aumentar pesos de Ultralytics, reduzir limiar de conf (`ULTRA_CONF_THRESH`).
+- Iluminação adversa: habilitar pré-processamento mais agressivo (já embutido) e aumentar resolução.
+- Baixo contraste: garantir 1080p, aplicar CLAHE; usar Roboflow treinado para condições específicas.
+- Ruído visual: elevar `YOLO_NMS_THRESH` moderadamente e usar ensemble para consenso entre modelos.
+
+## Métricas e Avaliação
+- Resposta dos endpoints de processamento inclui `metrics` com contagem e tempo por modelo e score médio do ensemble.
+- Use as métricas para ajustar pesos via `/config/ensemble` e comparar desempenho por cenário.
+
+## Atualização de Modelos
+- YOLO/Ultralytics: substitua os arquivos de pesos e recarregue via `/yolo/load` ou `/ultra/load`.
+- Roboflow: atualize `MODEL_ID` e recarregue via `/roboflow/load`.
+- Valide com imagens de teste conhecidas antes de produção.
+
+## Solução de Problemas
+- AI inativo: confirme `python app.py` e `http://localhost:8000/health`.
+- Tesseract não encontrado: verifique `TESSERACT_CMD` no `.env` do AI e PATH do sistema.
+- Dependências OpenCV: instale Microsoft Visual C++ Build Tools caso haja erros de compilação.
+- Detecção inconsistente: ajuste pesos via `/config/ensemble`, revise thresholds de YOLO/Ultralytics.

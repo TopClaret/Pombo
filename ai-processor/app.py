@@ -81,6 +81,18 @@ rf_config = {
     'api_key': os.getenv('ROBOFLOW_API_KEY', ''),
     'model_id': os.getenv('ROBOFLOW_MODEL_ID', '')
 }
+ensemble_weights = {
+    'yolo': 0.33,
+    'ultra': 0.34,
+    'roboflow': 0.33
+}
+try:
+    import json as _json
+    ew = os.getenv('ENSEMBLE_WEIGHTS', '')
+    if ew:
+        ensemble_weights.update(_json.loads(ew))
+except Exception:
+    pass
 
 @app.on_event("startup")
 def on_startup():
@@ -138,6 +150,14 @@ async def set_ultra_params(conf_thresh: float = 0.25, iou_thresh: float = 0.45):
     ultra_config['iou_thresh'] = iou_thresh
     ultra.set_params(conf_thresh, iou_thresh)
     return { 'status': 'ok', 'conf_thresh': conf_thresh, 'iou_thresh': iou_thresh }
+
+@app.post("/config/ensemble")
+async def set_ensemble_weights(yolo: float = 0.33, ultra: float = 0.34, roboflow: float = 0.33):
+    ensemble_weights['yolo'] = float(yolo)
+    ensemble_weights['ultra'] = float(ultra)
+    ensemble_weights['roboflow'] = float(roboflow)
+    os.environ['ENSEMBLE_WEIGHTS'] = _json.dumps(ensemble_weights)
+    return { 'status': 'ok', 'weights': ensemble_weights }
 
 @app.post("/roboflow/load")
 async def roboflow_load(api_url: str = "", api_key: str = "", model_id: str = ""):

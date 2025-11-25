@@ -23,6 +23,8 @@ import re
 from typing import List, Dict, Optional, Tuple
 import logging
 import os
+import json
+import time
 from pathlib import Path
 from yolo_detector import YOLODetector
 from ultra_detector import UltraDetector
@@ -99,6 +101,17 @@ class LicensePlateRecognizer:
             ures = self.ultra.load(ultra_path)
             self.ultra_available = bool(ures.get('loaded'))
         self.rf = RoboflowClient()
+        self.model_weights = {
+            'yolo': 0.33,
+            'ultra': 0.34,
+            'roboflow': 0.33
+        }
+        try:
+            w = os.getenv('ENSEMBLE_WEIGHTS', '')
+            if w:
+                self.model_weights.update(json.loads(w))
+        except Exception:
+            pass
         self.rf_available = False
         if os.getenv('ROBOFLOW_API_KEY', '') and os.getenv('ROBOFLOW_MODEL_ID', ''):
             rres = self.rf.load(os.getenv('ROBOFLOW_API_URL', ''), os.getenv('ROBOFLOW_API_KEY', ''), os.getenv('ROBOFLOW_MODEL_ID', ''))
@@ -283,7 +296,7 @@ class LicensePlateRecognizer:
         except Exception:
             return []
 
-    def detect_plates_yolo(self, image: np.ndarray) -> List[Tuple[int, int, int, int]]:
+    def detect_plates_yolo(self, image: np.ndarray) -> List[Tuple[int, int, int, int, float]]:
         if not self.yolo_available:
             return []
         result = self.yolo.infer(image)
@@ -295,7 +308,8 @@ class LicensePlateRecognizer:
             name = str(d.get('class_name', '')).lower()
             if name in ('license_plate', 'plate', 'placa'):
                 bbox = d['bbox']
-                plates.append((bbox['x'], bbox['y'], bbox['width'], bbox['height']))
+                conf = float(d.get('confidence', 0.6))
+                plates.append((bbox['x'], bbox['y'], bbox['width'], bbox['height'], conf))
         if plates:
             return plates
         car_like = []
@@ -320,7 +334,7 @@ class LicensePlateRecognizer:
                 boxes.append((x0 + lx, y0 + ly, lw, lh))
         return self.merge_boxes(boxes, thr=0.3) if boxes else []
 
-    def detect_plates_ultra(self, image: np.ndarray) -> List[Tuple[int, int, int, int]]:
+    def detect_plates_ultra(self, image: np.ndarray) -> List[Tuple[int, int, int, int, float]]:
         if not self.ultra_available:
             return []
         result = self.ultra.infer(image)
@@ -332,10 +346,11 @@ class LicensePlateRecognizer:
             name = str(d.get('class_name', '')).lower()
             if name in ('license_plate', 'plate', 'placa'):
                 bbox = d['bbox']
-                plates.append((bbox['x'], bbox['y'], bbox['width'], bbox['height']))
-        return self.merge_boxes(plates, thr=0.3) if plates else []
+                conf = float(d.get('confidence', 0.6))
+                plates.append((bbox['x'], bbox['y'], bbox['width'], bbox['height'], conf))
+        return plates
 
-    def detect_plates_roboflow(self, image: np.ndarray) -> List[Tuple[int, int, int, int]]:
+    def detect_plates_roboflow(self, image: np.ndarray) -> List[Tuple[int, int, int, int, float]]:
         if not self.rf_available:
             return []
         dets = self.rf.infer_image(image)
@@ -344,8 +359,74 @@ class LicensePlateRecognizer:
             name = str(d.get('class', '')).lower()
             if name in ('license_plate', 'plate', 'placa'):
                 b = d['bbox']
-                plates.append((b['x'], b['y'], b['width'], b['height']))
-        return self.merge_boxes(plates, thr=0.3) if plates else []
+                conf = float(d.get('confidence', 0.6)) if isinstance(d.get('confidence', None), (int, float)) else 0.6
+                plates.append((b['x'], b['y'], b['width'], b['height'], conf))
+        return plates
+
+    def _merge_ensemble(self, boxes: List[Tuple[int, int, int, int, float]]) -> List[Tuple[int, int, int, int, float]]:
+        merged = []
+        for box in boxes:
+            keep = True
+            for i, mb in enumerate(merged):
+                ax, ay, aw, ah, ac = box
+                bx, by, bw, bh, bc = mb
+                x1 = max(ax, bx)
+                y1 = max(ay, by)
+                x2 = min(ax + aw, bx + bw)
+                y2 = min(ay + ah, by + bh)
+                iw = max(0, x2 - x1)
+                ih = max(0, y2 - y1)
+                inter = iw * ih
+                uni = aw * ah + bw * bh - inter
+                iouv = inter / uni if uni > 0 else 0.0
+                if iouv > 0.3:
+                    x = min(ax, bx)
+                    y = min(ay, by)
+                    r = max(ax + aw, bx + bw)
+                    b = max(ay + ah, by + bh)
+                    merged[i] = (x, y, r - x, b - y, max(ac, bc))
+                    keep = False
+                    break
+            if keep:
+                merged.append(box)
+        return merged
+
+    def detect_plates_ensemble(self, image: np.ndarray) -> Tuple[List[Tuple[int, int, int, int]], Dict]:
+        t0 = time.perf_counter()
+        boxes = []
+        metrics = {
+            'yolo': {'count': 0, 'time_ms': 0.0},
+            'ultra': {'count': 0, 'time_ms': 0.0},
+            'roboflow': {'count': 0, 'time_ms': 0.0}
+        }
+        if self.yolo_available:
+            s = time.perf_counter()
+            by = self.detect_plates_yolo(image)
+            metrics['yolo']['time_ms'] = (time.perf_counter() - s) * 1000
+            metrics['yolo']['count'] = len(by)
+            w = self.model_weights.get('yolo', 0.33)
+            boxes.extend([(x, y, w0, h0, min(1.0, c * w)) for (x, y, w0, h0, c) in by])
+        if self.ultra_available:
+            s = time.perf_counter()
+            bu = self.detect_plates_ultra(image)
+            metrics['ultra']['time_ms'] = (time.perf_counter() - s) * 1000
+            metrics['ultra']['count'] = len(bu)
+            w = self.model_weights.get('ultra', 0.34)
+            boxes.extend([(x, y, w0, h0, min(1.0, c * w)) for (x, y, w0, h0, c) in bu])
+        if self.rf_available:
+            s = time.perf_counter()
+            br = self.detect_plates_roboflow(image)
+            metrics['roboflow']['time_ms'] = (time.perf_counter() - s) * 1000
+            metrics['roboflow']['count'] = len(br)
+            w = self.model_weights.get('roboflow', 0.33)
+            boxes.extend([(x, y, w0, h0, min(1.0, c * w)) for (x, y, w0, h0, c) in br])
+        merged = self._merge_ensemble(boxes) if boxes else []
+        metrics['ensemble'] = {
+            'count': len(merged),
+            'time_ms': (time.perf_counter() - t0) * 1000,
+            'avg_score': float(np.mean([c for (_, _, _, _, c) in merged])) if merged else 0.0
+        }
+        return [(x, y, w0, h0) for (x, y, w0, h0, _) in merged], metrics
 
     def iou(self, a: Tuple[int, int, int, int], b: Tuple[int, int, int, int]) -> float:
         ax, ay, aw, ah = a
@@ -846,43 +927,21 @@ class LicensePlateRecognizer:
             
             logger.info(f"Processando imagem: {image_path} ({image.shape[1]}x{image.shape[0]})")
             
-            # Detectar placas usando múltiplos métodos (cascata de fallback)
             plate_regions = []
+            metrics = {}
             
             try:
                 # Método 1: Ultralytics (mais preciso se disponível)
-                ultra_boxes = self.detect_plates_ultra(image)
-                if ultra_boxes:
-                    plate_regions = ultra_boxes
-                    logger.debug(f"Detectadas {len(ultra_boxes)} placas via Ultralytics")
+                boxes, m = self.detect_plates_ensemble(image)
+                metrics = m
+                if boxes:
+                    plate_regions = boxes
             except Exception as e:
                 logger.debug(f"Erro na detecção Ultralytics: {e}")
             
             if not plate_regions:
                 try:
-                    # Método 2: Roboflow
-                    rf_boxes = self.detect_plates_roboflow(image)
-                    if rf_boxes:
-                        plate_regions = rf_boxes
-                        logger.debug(f"Detectadas {len(rf_boxes)} placas via Roboflow")
-                except Exception as e:
-                    logger.debug(f"Erro na detecção Roboflow: {e}")
-            
-            if not plate_regions:
-                try:
-                    # Método 3: YOLO
-                    yolo_boxes = self.detect_plates_yolo(image)
-                    if yolo_boxes:
-                        plate_regions = yolo_boxes
-                        logger.debug(f"Detectadas {len(yolo_boxes)} placas via YOLO")
-                except Exception as e:
-                    logger.debug(f"Erro na detecção YOLO: {e}")
-            
-            if not plate_regions:
-                try:
-                    # Método 4: Detecção tradicional por contornos
                     plate_regions = self.detect_plates(image)
-                    logger.debug(f"Detectadas {len(plate_regions)} placas via contornos")
                 except Exception as e:
                     logger.debug(f"Erro na detecção por contornos: {e}")
             
@@ -963,7 +1022,7 @@ class LicensePlateRecognizer:
                     continue
             
             logger.info(f"Processamento concluído: {len(results)} placa(s) reconhecida(s)")
-            return results
+            return results, metrics
             
         except Exception as e:
             logger.error(f"Erro no processamento da imagem {image_path}: {e}", exc_info=True)
@@ -1157,7 +1216,7 @@ def process_media_file(file_path: str, is_video: bool = False) -> Dict:
     if is_video:
         results = recognizer.recognize_from_video(file_path)
     else:
-        results = recognizer.recognize_from_image(file_path)
+        results, metrics = recognizer.recognize_from_image(file_path)
     
     repeated_vehicles = recognizer.find_repeated_vehicles(results)
     
@@ -1171,7 +1230,8 @@ def process_media_file(file_path: str, is_video: bool = False) -> Dict:
         'detected_plates': results,
         'file_path': file_path,
         'overall_vehicle_color': overall_color,
-        'overall_vehicle_color_confidence': overall_color_conf
+        'overall_vehicle_color_confidence': overall_color_conf,
+        'metrics': metrics
     }
 
 if __name__ == "__main__":
